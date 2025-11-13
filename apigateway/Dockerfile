@@ -1,8 +1,9 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.21-alpine3.19 AS builder
 
 WORKDIR /app
 
 # Instalar dependencias
+# RUN apk add --no-cache ca-certificates && update-ca-certificates && apk add --no-cache git
 RUN apk add --no-cache git
 
 # Copiar go.mod y go.sum
@@ -16,7 +17,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -o gateway ./app/main.go
 
 # Stage final
-FROM alpine:latest
+FROM alpine:3.19
 
 RUN apk --no-cache add ca-certificates
 
