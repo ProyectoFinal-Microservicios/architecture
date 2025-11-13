@@ -1,4 +1,7 @@
 services:
+  # Referencia a servicios externos de apps
+  # Los servicios auth y profiles deben estar corriendo desde ../apps/docker-compose.dev.yml
+  # o puedes agregar estos servicios aquí directamente
   rabbitmq:
     build:
       context: ./rabbitmq
