@@ -352,14 +352,14 @@ func (g *Gateway) handleGetUserUnified(w http.ResponseWriter, r *http.Request) {
 		resultChan <- ServiceResult{Name: "auth", Response: resp}
 	}()
 
-	// TODO: Consultar servicio de perfiles cuando esté disponible
-	// wg.Add(1)
-	// go func() {
-	// 	defer wg.Done()
-	// 	targetURL := g.config.ProfileServiceURL + "/profiles/" + username
-	// 	resp := g.proxyRequest(targetURL, r, nil)
-	// 	resultChan <- ServiceResult{Name: "profile", Response: resp}
-	// }()
+	// Consultar servicio de perfiles
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		targetURL := g.config.ProfileServiceURL + "/profiles/" + username
+		resp := g.proxyRequest(targetURL, r, nil)
+		resultChan <- ServiceResult{Name: "profile", Response: resp}
+	}()
 
 	// Esperar respuestas
 	go func() {
@@ -395,16 +395,52 @@ func (g *Gateway) handleGetUserUnified(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Por ahora, solo retornar datos de auth
-	// En el futuro, aquí se combinarían los datos de auth + profile
+	// Combinar con datos de perfil si están disponibles
 	unifiedResponse := authData
-
-	// TODO: Cuando el servicio de perfiles esté disponible:
-	// if profileResp := results["profile"]; profileResp != nil && profileResp.StatusCode == 200 {
-	// 	var profileData map[string]interface{}
-	// 	json.Unmarshal(profileResp.Body, &profileData)
-	// 	// Combinar profileData con authData
-	// }
+	
+	if profileResp := results["profile"]; profileResp != nil && profileResp.StatusCode == 200 {
+		var profileData map[string]interface{}
+		if err := json.Unmarshal(profileResp.Body, &profileData); err == nil {
+			log.Printf("[Gateway] Successfully retrieved profile data for %s", username)
+			
+			// Obtener el objeto user de auth
+			if userObj, ok := unifiedResponse["user"].(map[string]interface{}); ok {
+				// Agregar campos adicionales del perfil
+				if bio, ok := profileData["bio"]; ok {
+					userObj["bio"] = bio
+				}
+				if nickname, ok := profileData["nickname"]; ok {
+					userObj["nickname"] = nickname
+				}
+				if personalUrl, ok := profileData["personal_url"]; ok {
+					userObj["personalUrl"] = personalUrl
+				}
+				if organization, ok := profileData["organization"]; ok {
+					userObj["organization"] = organization
+				}
+				if country, ok := profileData["country"]; ok {
+					userObj["country"] = country
+				}
+				if profileVisibility, ok := profileData["profile_visibility"]; ok {
+					userObj["profileVisibility"] = profileVisibility
+				}
+				// Agregar URLs sociales
+				if githubUrl, ok := profileData["github_url"]; ok {
+					userObj["githubUrl"] = githubUrl
+				}
+				if linkedinUrl, ok := profileData["linkedin_url"]; ok {
+					userObj["linkedinUrl"] = linkedinUrl
+				}
+				if twitterUrl, ok := profileData["twitter_url"]; ok {
+					userObj["twitterUrl"] = twitterUrl
+				}
+			}
+		} else {
+			log.Printf("[Gateway] Warning: Could not parse profile data for %s", username)
+		}
+	} else {
+		log.Printf("[Gateway] Profile data not available or service returned error for %s", username)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(unifiedResponse)
@@ -455,8 +491,13 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 		}
 	}
 
-	// Campos que irían al servicio de perfiles (futuro)
-	profileFieldNames := []string{"bio", "avatar", "preferences", "address", "birthdate"}
+	// Campos que van al servicio de perfiles
+	profileFieldNames := []string{
+		"bio", "nickname", "personalUrl", "organization", "country",
+		"mailingAddress", "contactInfoPublic", "profileVisibility",
+		"githubUrl", "linkedinUrl", "twitterUrl", "facebookUrl", 
+		"instagramUrl", "websiteUrl",
+	}
 	for _, field := range profileFieldNames {
 		if val, exists := updateData[field]; exists {
 			profileFields[field] = val
@@ -495,17 +536,52 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 		}()
 	}
 
-	// TODO: Actualizar en servicio de perfiles cuando esté disponible
-	// if len(profileFields) > 0 {
-	// 	wg.Add(1)
-	// 	go func() {
-	// 		defer wg.Done()
-	// 		profileBody, _ := json.Marshal(profileFields)
-	// 		targetURL := g.config.ProfileServiceURL + "/profiles/" + username
-	// 		resp := g.proxyRequest(targetURL, r, profileBody)
-	// 		resultChan <- ServiceResult{Name: "profile", Response: resp}
-	// 	}()
-	// }
+	// Actualizar en servicio de perfiles si hay campos
+	if len(profileFields) > 0 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			
+			// Convertir campos al formato snake_case que espera el servicio de profiles
+			profileFieldsSnake := make(map[string]interface{})
+			fieldMapping := map[string]string{
+				"personalUrl":       "personal_url",
+				"mailingAddress":    "mailing_address",
+				"contactInfoPublic": "contact_info_public",
+				"profileVisibility": "profile_visibility",
+				"githubUrl":         "github_url",
+				"linkedinUrl":       "linkedin_url",
+				"twitterUrl":        "twitter_url",
+				"facebookUrl":       "facebook_url",
+				"instagramUrl":      "instagram_url",
+				"websiteUrl":        "website_url",
+			}
+			
+			for key, val := range profileFields {
+				if snakeKey, exists := fieldMapping[key]; exists {
+					profileFieldsSnake[snakeKey] = val
+				} else {
+					profileFieldsSnake[key] = val
+				}
+			}
+			
+			profileBody, _ := json.Marshal(profileFieldsSnake)
+			targetURL := g.config.ProfileServiceURL + "/profiles/me"
+			
+			// Crear request PUT para el servicio de profiles
+			req, err := http.NewRequest("PUT", targetURL, bytes.NewReader(profileBody))
+			if err != nil {
+				resultChan <- ServiceResult{Name: "profile", Error: err}
+				return
+			}
+			
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Authorization", authHeader)
+			
+			resp := g.proxyRequest(targetURL, req, profileBody)
+			resultChan <- ServiceResult{Name: "profile", Response: resp}
+		}()
+	}
 
 	// Esperar respuestas
 	go func() {
@@ -544,7 +620,197 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 }
 
 // ============================================
-// HANDLER - HEALTH CHECK
+// HANDLER - OBTENER PERFIL DEL USUARIO AUTENTICADO
+// ============================================
+
+func (g *Gateway) handleGetMyProfile(w http.ResponseWriter, r *http.Request) {
+	log.Println("[Gateway] Processing GET my profile request")
+
+	// Extraer token de autorización
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, `{"error":"Authorization header required"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Proxy al servicio de perfiles
+	targetURL := g.config.ProfileServiceURL + "/profiles/me"
+	resp := g.proxyRequest(targetURL, r, nil)
+
+	if resp.Error != nil {
+		log.Printf("[Gateway] Error proxying to profile service: %v", resp.Error)
+		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Copiar headers de respuesta
+	for key, values := range resp.Headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Enviar respuesta
+	w.WriteHeader(resp.StatusCode)
+	w.Write(resp.Body)
+
+	log.Printf("[Gateway] Get my profile request completed - Status: %d", resp.StatusCode)
+}
+
+// ============================================
+// HANDLER - ACTUALIZAR PERFIL DEL USUARIO AUTENTICADO
+// ============================================
+
+func (g *Gateway) handleUpdateMyProfile(w http.ResponseWriter, r *http.Request) {
+	log.Println("[Gateway] Processing UPDATE my profile request")
+
+	// Extraer token de autorización
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, `{"error":"Authorization header required"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Leer body
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		http.Error(w, "Error reading request body", http.StatusBadRequest)
+		return
+	}
+
+	// Proxy al servicio de perfiles
+	targetURL := g.config.ProfileServiceURL + "/profiles/me"
+	resp := g.proxyRequest(targetURL, r, body)
+
+	if resp.Error != nil {
+		log.Printf("[Gateway] Error proxying to profile service: %v", resp.Error)
+		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Copiar headers de respuesta
+	for key, values := range resp.Headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Enviar respuesta
+	w.WriteHeader(resp.StatusCode)
+	w.Write(resp.Body)
+
+	log.Printf("[Gateway] Update my profile request completed - Status: %d", resp.StatusCode)
+}
+
+// ============================================
+// HANDLER - BUSCAR PERFILES PÚBLICOS
+// ============================================
+
+func (g *Gateway) handleSearchProfiles(w http.ResponseWriter, r *http.Request) {
+	log.Println("[Gateway] Processing search profiles request")
+
+	// Construir URL con query parameters
+	targetURL := g.config.ProfileServiceURL + "/profiles/search"
+	if r.URL.RawQuery != "" {
+		targetURL += "?" + r.URL.RawQuery
+	}
+
+	resp := g.proxyRequest(targetURL, r, nil)
+
+	if resp.Error != nil {
+		log.Printf("[Gateway] Error proxying to profile service: %v", resp.Error)
+		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Copiar headers de respuesta
+	for key, values := range resp.Headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Enviar respuesta
+	w.WriteHeader(resp.StatusCode)
+	w.Write(resp.Body)
+
+	log.Printf("[Gateway] Search profiles request completed - Status: %d", resp.StatusCode)
+}
+
+// ============================================
+// HANDLER - OBTENER PERFIL PÚBLICO POR USERNAME
+// ============================================
+
+func (g *Gateway) handleGetPublicProfile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	username := vars["username"]
+	
+	log.Printf("[Gateway] Processing GET public profile request for: %s", username)
+
+	// Proxy al servicio de perfiles
+	targetURL := g.config.ProfileServiceURL + "/profiles/" + username
+	resp := g.proxyRequest(targetURL, r, nil)
+
+	if resp.Error != nil {
+		log.Printf("[Gateway] Error proxying to profile service: %v", resp.Error)
+		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Copiar headers de respuesta
+	for key, values := range resp.Headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Enviar respuesta
+	w.WriteHeader(resp.StatusCode)
+	w.Write(resp.Body)
+
+	log.Printf("[Gateway] Get public profile request completed - Status: %d", resp.StatusCode)
+}
+
+// ============================================
+// HANDLER - OBTENER ESTADÍSTICAS DEL PERFIL
+// ============================================
+
+func (g *Gateway) handleGetProfileStats(w http.ResponseWriter, r *http.Request) {
+	log.Println("[Gateway] Processing GET profile stats request")
+
+	// Extraer token de autorización
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		http.Error(w, `{"error":"Authorization header required"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Proxy al servicio de perfiles
+	targetURL := g.config.ProfileServiceURL + "/profiles/stats/me"
+	resp := g.proxyRequest(targetURL, r, nil)
+
+	if resp.Error != nil {
+		log.Printf("[Gateway] Error proxying to profile service: %v", resp.Error)
+		http.Error(w, "Service unavailable", http.StatusServiceUnavailable)
+		return
+	}
+
+	// Copiar headers de respuesta
+	for key, values := range resp.Headers {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+
+	// Enviar respuesta
+	w.WriteHeader(resp.StatusCode)
+	w.Write(resp.Body)
+
+	log.Printf("[Gateway] Get profile stats request completed - Status: %d", resp.StatusCode)
+}
+
+// ============================================
+// HEALTH CHECK
 // ============================================
 
 func (g *Gateway) handleHealth(w http.ResponseWriter, r *http.Request) {
@@ -554,6 +820,7 @@ func (g *Gateway) handleHealth(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Format(time.RFC3339),
 		"upstreams": map[string]string{
 			"auth": g.config.AuthServiceURL,
+			"profiles": g.config.ProfileServiceURL,
 			"orchestrator": g.config.OrchestratorURL,
 		},
 	}
@@ -771,6 +1038,13 @@ func (g *Gateway) setupRoutes() *mux.Router {
 	api.HandleFunc("/users/{username}/profile", g.handleGetUserUnified).Methods("GET")
 	api.HandleFunc("/users/{username}/profile", g.handleUpdateUserUnified).Methods("PATCH", "PUT")
 
+	// Perfiles - Endpoints específicos del servicio de profiles
+	api.HandleFunc("/profiles/me", g.handleGetMyProfile).Methods("GET")
+	api.HandleFunc("/profiles/me", g.handleUpdateMyProfile).Methods("PUT")
+	api.HandleFunc("/profiles/search", g.handleSearchProfiles).Methods("GET")
+	api.HandleFunc("/profiles/{username}", g.handleGetPublicProfile).Methods("GET")
+	api.HandleFunc("/profiles/stats/me", g.handleGetProfileStats).Methods("GET")
+
 	return router
 }
 
@@ -809,15 +1083,24 @@ func main() {
 	log.Println("===========================================")
 	log.Println("Upstream services:")
 	log.Printf("  - Auth:        %s", config.AuthServiceURL)
-	log.Printf("  - Profiles:    %s (future)", config.ProfileServiceURL)
+	log.Printf("  - Profiles:    %s ✅ INTEGRATED", config.ProfileServiceURL)
 	log.Printf("  - Orchestrator: %s", config.OrchestratorURL)
 	log.Println("===========================================")
 	log.Println("Available endpoints:")
+	log.Println("🔐 Authentication:")
 	log.Println("  POST   /api/v1/auth/login")
 	log.Println("  POST   /api/v1/auth/register")
+	log.Println("👤 User Management:")
 	log.Println("  DELETE /api/v1/users/{username}")
-	log.Println("  GET    /api/v1/users/{username}/profile")
-	log.Println("  PATCH  /api/v1/users/{username}/profile")
+	log.Println("  GET    /api/v1/users/{username}/profile    (unified)")
+	log.Println("  PATCH  /api/v1/users/{username}/profile    (unified)")
+	log.Println("📋 Profiles Service:")
+	log.Println("  GET    /api/v1/profiles/me")
+	log.Println("  PUT    /api/v1/profiles/me")
+	log.Println("  GET    /api/v1/profiles/search")
+	log.Println("  GET    /api/v1/profiles/{username}")
+	log.Println("  GET    /api/v1/profiles/stats/me")
+	log.Println("🏥 Health:")
 	log.Println("  GET    /health")
 	log.Println("===========================================")
 	log.Println("🔗 Abre en tu navegador:")
