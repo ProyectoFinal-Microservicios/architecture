@@ -1,0 +1,24 @@
+# Configuración de Godog para API Gateway
+# Este archivo se usa cuando ejecutas 'godog run' sin parámetros
+
+## Format de salida
+# Opciones: progress, pretty, json, junit
+format = progress
+
+## Paths a los features
+paths = tests/acceptance/features
+
+## Tags a ejecutar (opcional)
+# tags = @critical
+
+## Timeout para cada paso (en segundos)
+timeout = 10s
+
+## Salida de colored
+publish = false
+
+## Stop en primer error
+stop-on-failure = false
+
+## Parallelización
+# parallel = 4

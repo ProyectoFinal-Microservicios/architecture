@@ -1,0 +1,140 @@
+{
+  "healthSchema": {
+    "type": "object",
+    "required": ["status", "service", "timestamp"],
+    "properties": {
+      "status": {
+        "type": "string",
+        "enum": ["UP", "DOWN"]
+      },
+      "service": {
+        "type": "string",
+        "pattern": "api-gateway"
+      },
+      "timestamp": {
+        "type": "string",
+        "format": "date-time"
+      },
+      "upstreams": {
+        "type": "object",
+        "properties": {
+          "auth": { "type": "string" },
+          "orchestrator": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "loginResponseSchema": {
+    "type": "object",
+    "required": ["access_token", "token_type", "user"],
+    "properties": {
+      "access_token": {
+        "type": "string",
+        "minLength": 20
+      },
+      "token_type": {
+        "type": "string",
+        "enum": ["Bearer"]
+      },
+      "expires_in": {
+        "oneOf": [
+          { "type": "number", "minimum": 0 },
+          { "type": "null" }
+        ]
+      },
+      "message": { "type": "string" },
+      "user": {
+        "type": "object",
+        "required": ["id", "username", "email"],
+        "properties": {
+          "id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "phone": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  },
+
+  "registerResponseSchema": {
+    "type": "object",
+    "required": ["message", "user", "access_token", "token_type"],
+    "properties": {
+      "message": {
+        "type": "string"
+      },
+      "user": {
+        "type": "object",
+        "required": ["id", "username", "email"],
+        "properties": {
+          "id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "phone": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string" },
+          "createdAt": { "type": "string" }
+        }
+      },
+      "access_token": {
+        "type": "string",
+        "minLength": 20
+      },
+      "token_type": {
+        "type": "string",
+        "enum": ["Bearer"]
+      }
+    }
+  },
+
+  "userProfileSchema": {
+    "type": "object",
+    "required": ["user"],
+    "properties": {
+      "user": {
+        "type": "object",
+        "required": ["id", "username", "email"],
+        "properties": {
+          "id": { "type": "string" },
+          "username": { "type": "string" },
+          "email": { "type": "string", "format": "email" },
+          "firstName": { "type": "string" },
+          "lastName": { "type": "string" },
+          "phone": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string" },
+          "createdAt": { "type": "string" },
+          "updatedAt": { "type": ["string", "null"] },
+          "lastLoginAt": { "type": ["string", "null"] }
+        }
+      }
+    }
+  },
+
+  "errorResponseSchema": {
+    "type": "object",
+    "required": ["error"],
+    "properties": {
+      "error": {
+        "type": "string"
+      }
+    }
+  },
+
+  "deleteResponseSchema": {
+    "type": "object",
+    "required": ["message"],
+    "properties": {
+      "message": {
+        "type": "string"
+      }
+    }
+  }
+}
