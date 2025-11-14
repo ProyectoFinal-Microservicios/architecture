@@ -13,22 +13,19 @@ pipeline {
     agent any
     
     tools {
-        gradle 'Gradle8'
+        jdk 'jdk-17'
     }
 
     environment {
-        SERVICE_NAME = 'notification-orchestrator'
-        SONAR_HOST_URL = 'http://sonarqube:9000'
-        DOCKER_IMAGE_NAME = 'notification-orchestrator'
-        BUILD_VERSION = "${env.BUILD_NUMBER}"
-        JAVA_HOME = '/opt/java/openjdk'
+        SONARQUBE_ENV = 'sonarqube'
+        JAVA_HOME = tool('jdk-17')
+        PATH = "${JAVA_HOME}/bin:${PATH}"
     }
 
     options {
         buildDiscarder(logRotator(numToKeepStr: '10'))
         timestamps()
         timeout(time: 45, unit: 'MINUTES')
-        ansiColor('xterm')
     }
 
     stages {
@@ -48,10 +45,16 @@ pipeline {
         // ============================================
         stage('🔨 Build') {
             steps {
-                echo "🔨 Compilando proyecto con Gradle..."
-                sh 'java -version'
-                sh './gradlew --version'
-                sh './gradlew clean build -x test --no-daemon'
+                dir('orchestrator') {
+                    sh 'echo ${JAVA_HOME}'
+                    sh 'pwd'
+                    sh 'ls -la'
+                    echo "🔨 Compilando proyecto con Gradle..."
+                    sh 'java -version'
+                    sh './gradlew --version'
+                    sh './gradlew clean build --no-daemon'
+                }
+                
             }
         }
 
@@ -105,7 +108,7 @@ sonar.sourceEncoding=UTF-8
 """
                     }
 
-                    withSonarQubeEnv('SonarQube') {
+                    withSonarQubeEnv('sonarqube') {
                         sh """
                             ./gradlew sonarqube \
                                 -Dsonar.projectKey=notification-orchestrator \
@@ -117,59 +120,15 @@ sonar.sourceEncoding=UTF-8
             }
         }
 
-        // ============================================
-        // 6️⃣ QUALITY GATE
-        // ============================================
-        stage('🚦 Quality Gate') {
-            steps {
-                echo "🚦 Verificando Quality Gate de SonarQube..."
-                script {
-                    timeout(time: 5, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            echo "⚠️ Quality Gate falló: ${qg.status}"
-                        } else {
-                            echo "✅ Quality Gate aprobado"
-                        }
-                    }
-                }
-            }
-        }
-
-        // ============================================
-        // 7️⃣ DOCKER IMAGE
-        // ============================================
-        stage('🐳 Build Docker Image') {
-            steps {
-                echo "🐳 Construyendo imagen Docker..."
-                sh """
-                    docker build -t ${DOCKER_IMAGE_NAME}:${BUILD_VERSION} .
-                    docker tag ${DOCKER_IMAGE_NAME}:${BUILD_VERSION} ${DOCKER_IMAGE_NAME}:latest
-                """
-            }
-        }
-
-        // ============================================
-        // 8️⃣ PRUEBAS CUCUMBER
-        // ============================================
-        stage('🥒 Cucumber Tests') {
-            steps {
-                echo "🥒 Ejecutando pruebas Cucumber..."
-                script {
-                    if (fileExists('src/test/resources/features')) {
-                        sh './gradlew test --tests CucumberTestRunner --no-daemon || true'
-                    } else {
-                        echo "ℹ️ No se encontraron pruebas Cucumber"
-                    }
-                }
-            }
-        }
+        // Note: Quality Gate, Docker image build and Cucumber stages
+        // removed per request. SonarQube analysis remains (no quality gate).
     }
 
     // ============================================
     // POST BUILD
     // ============================================
     post {
+
         always {
             echo "📊 Publicando reportes..."
             junit allowEmptyResults: true, testResults: '**/build/test-results/**/*.xml'
@@ -190,15 +149,10 @@ sonar.sourceEncoding=UTF-8
                 reportName: 'Test Report',
                 reportTitles: 'Unit Tests'
             ])
-
-            cucumber buildStatus: 'UNSTABLE',
-                fileIncludePattern: '**/cucumber-report.json',
-                sortingMethod: 'ALPHABETICAL'
         }
 
         success {
             echo "✅ Pipeline completado correctamente"
-            echo "Imagen Docker: ${DOCKER_IMAGE_NAME}:${BUILD_VERSION}"
         }
 
         failure {
