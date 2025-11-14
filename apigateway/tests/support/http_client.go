@@ -26,6 +26,11 @@ func NewHTTPClient(baseURL string) *HTTPClient {
 	}
 }
 
+// GetBaseURL retorna la URL base del cliente
+func (c *HTTPClient) GetBaseURL() string {
+	return c.baseURL
+}
+
 // SetToken establece el token JWT para autenticación
 func (c *HTTPClient) SetToken(token string) {
 	c.token = token
