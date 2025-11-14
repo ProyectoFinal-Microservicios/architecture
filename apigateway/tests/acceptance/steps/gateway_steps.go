@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/cucumber/godog"
-	"github.com/microservicios/apigateway/tests/support"
+	"github.com/ProyectoFinal-Microservicios/architecture/apigateway/tests/support"
 )
 
 // APIGatewayContext contiene el contexto compartido de pruebas
