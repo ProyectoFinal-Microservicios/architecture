@@ -9,7 +9,6 @@ clients:
   - url: http://loki:3100/loki/api/v1/push
 
 scrape_configs:
-  # Configuración para logs de Docker
   - job_name: docker
     docker_sd_configs:
       - host: unix:///var/run/docker.sock
@@ -23,7 +22,6 @@ scrape_configs:
       - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
         target_label: 'service'
     pipeline_stages:
-      # Intentar parsear JSON primero
       - json:
           expressions:
             timestamp: timestamp
@@ -32,17 +30,11 @@ scrape_configs:
             logger: logger
             message: message
             payload: payload
-            meta: meta
-      # Labels desde JSON parseado
+          drop_malformed: false
+      - match:
+          selector: '{__error__="JSONParserErr"}'
+          action: drop
+      - regex:
+          expression: '^(?P<timestamp>[^\s]+)\s+(?P<level>INFO|WARN|ERROR|DEBUG)?'
       - labels:
           level:
-          service:
-          logger:
-      # Si no es JSON, usar regex para logs tradicionales
-      - match:
-          selector: '{service=""}'
-          stages:
-            - regex:
-                expression: '(?P<level>INFO|WARN|ERROR|DEBUG)'
-            - labels:
-                level:

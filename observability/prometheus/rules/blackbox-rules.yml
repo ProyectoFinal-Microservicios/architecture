@@ -1,0 +1,11 @@
+groups:
+  - name: blackbox-alerts
+    rules:
+      - alert: ServiceDown
+        expr: probe_success == 0
+        for: 10s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio no responde"
+          description: "El endpoint {{ $labels.instance }} no está respondiendo."
