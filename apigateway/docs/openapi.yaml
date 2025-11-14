@@ -450,6 +450,294 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /api/v1/profiles/me:
+    get:
+      tags:
+        - Perfiles
+      summary: Obtener mi perfil
+      description: |
+        Obtiene el perfil completo del usuario autenticado.
+        
+        Incluye información extendida del perfil como biografía, organización,
+        país, URLs sociales, etc.
+      operationId: getMyProfile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Perfil obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDetail'
+              examples:
+                success:
+                  value:
+                    id: '123e4567-e89b-12d3-a456-426614174000'
+                    user_id: '550e8400-e29b-41d4-a716-446655440000'
+                    username: pepito
+                    email: pepito@example.com
+                    first_name: Pepito
+                    last_name: García
+                    nickname: Pepe
+                    bio: 'Desarrollador full-stack apasionado por Go y Node.js'
+                    organization: 'Tech Corp'
+                    country: España
+                    profile_visibility: public
+                    github_url: 'https://github.com/pepito'
+                    linkedin_url: 'https://linkedin.com/in/pepito'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Perfil no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Servicio no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Perfiles
+      summary: Actualizar mi perfil
+      description: |
+        Actualiza el perfil del usuario autenticado.
+        
+        Permite modificar información extendida como biografía, organización,
+        URLs sociales, visibilidad del perfil, etc.
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+            examples:
+              complete:
+                value:
+                  nickname: Pepe
+                  bio: 'Desarrollador full-stack especializado en microservicios'
+                  organization: 'Tech Corp'
+                  country: España
+                  profile_visibility: public
+                  github_url: 'https://github.com/pepito'
+                  linkedin_url: 'https://linkedin.com/in/pepito'
+                  twitter_url: 'https://twitter.com/pepito'
+      responses:
+        '200':
+          description: Perfil actualizado exitosamente
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: 'Perfil actualizado exitosamente'
+                  profile:
+                    $ref: '#/components/schemas/ProfileDetail'
+        '400':
+          description: Datos inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Servicio no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/profiles/search:
+    get:
+      tags:
+        - Perfiles
+      summary: Buscar perfiles públicos
+      description: |
+        Busca perfiles públicos por nombre de usuario, biografía, organización o país.
+        
+        Solo retorna perfiles con visibilidad pública.
+      operationId: searchProfiles
+      parameters:
+        - name: q
+          in: query
+          description: Término de búsqueda (busca en username, nickname, bio)
+          schema:
+            type: string
+            example: desarrollador
+        - name: country
+          in: query
+          description: Filtrar por país
+          schema:
+            type: string
+            example: España
+        - name: organization
+          in: query
+          description: Filtrar por organización
+          schema:
+            type: string
+            example: Tech Corp
+        - name: limit
+          in: query
+          description: Número máximo de resultados
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+        - name: offset
+          in: query
+          description: Número de resultados a saltar (paginación)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+      responses:
+        '200':
+          description: Resultados de búsqueda
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchProfilesResponse'
+              examples:
+                success:
+                  value:
+                    results:
+                      - id: '123e4567-e89b-12d3-a456-426614174000'
+                        username: pepito
+                        nickname: Pepe
+                        bio: 'Desarrollador full-stack'
+                        organization: 'Tech Corp'
+                        country: España
+                      - id: '987fcdeb-51a2-43f1-b789-234567890abc'
+                        username: juanito
+                        nickname: Juan
+                        bio: 'Backend developer'
+                        organization: 'StartupXYZ'
+                        country: México
+                    count: 2
+                    limit: 20
+                    offset: 0
+        '500':
+          description: Error en el servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/profiles/{username}:
+    get:
+      tags:
+        - Perfiles
+      summary: Obtener perfil público por username
+      description: |
+        Obtiene el perfil público de un usuario por su nombre de usuario.
+        
+        Solo muestra información si el perfil es público. Si el usuario está
+        autenticado y solicita su propio perfil, se muestra información completa.
+      operationId: getPublicProfile
+      parameters:
+        - name: username
+          in: path
+          required: true
+          description: Nombre de usuario
+          schema:
+            type: string
+            example: pepito
+      security:
+        - bearerAuth: []
+        - {}
+      responses:
+        '200':
+          description: Perfil obtenido exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileDetail'
+        '404':
+          description: Perfil no encontrado o privado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Servicio no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/v1/profiles/stats/me:
+    get:
+      tags:
+        - Perfiles
+      summary: Obtener estadísticas de mi perfil
+      description: |
+        Obtiene estadísticas del perfil del usuario autenticado.
+        
+        Incluye:
+        - Número total de visitas al perfil
+        - Actividad reciente (actualizaciones, cambios)
+      operationId: getProfileStats
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Estadísticas obtenidas exitosamente
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProfileStats'
+              examples:
+                success:
+                  value:
+                    total_views: 42
+                    recent_activity:
+                      - action: updated
+                        changes:
+                          bio: 'Nueva biografía'
+                        performed_at: '2025-11-12T10:30:00Z'
+                      - action: updated
+                        changes:
+                          github_url: 'https://github.com/pepito'
+                        performed_at: '2025-11-11T15:20:00Z'
+        '401':
+          description: No autenticado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Perfil no encontrado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: Servicio no disponible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
     HealthResponse:
@@ -765,6 +1053,273 @@ components:
             issue: 'Format inválido'
           description: Detalles adicionales del error
 
+    ProfileDetail:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: '123e4567-e89b-12d3-a456-426614174000'
+          description: ID único del perfil
+        user_id:
+          type: string
+          format: uuid
+          example: '550e8400-e29b-41d4-a716-446655440000'
+          description: ID del usuario asociado
+        username:
+          type: string
+          example: pepito
+        email:
+          type: string
+          format: email
+          nullable: true
+          example: pepito@example.com
+          description: Email (visible si contact_info_public es true)
+        phone:
+          type: string
+          nullable: true
+          example: '+34612345678'
+          description: Teléfono (visible si contact_info_public es true)
+        first_name:
+          type: string
+          nullable: true
+          example: Pepito
+        last_name:
+          type: string
+          nullable: true
+          example: García
+        nickname:
+          type: string
+          nullable: true
+          example: Pepe
+          description: Apodo o nombre público
+        personal_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://pepito.dev'
+          description: URL personal o portfolio
+        bio:
+          type: string
+          nullable: true
+          example: 'Desarrollador full-stack apasionado por Go y Node.js'
+          description: Biografía del usuario
+        organization:
+          type: string
+          nullable: true
+          example: 'Tech Corp'
+          description: Organización o empresa
+        country:
+          type: string
+          nullable: true
+          example: España
+          description: País de residencia
+        mailing_address:
+          type: string
+          nullable: true
+          example: 'Calle Principal 123, Madrid'
+          description: Dirección postal
+        contact_info_public:
+          type: boolean
+          default: false
+          description: Si la información de contacto es pública
+        profile_visibility:
+          type: string
+          enum:
+            - public
+            - private
+          default: public
+          description: Visibilidad del perfil
+        github_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://github.com/pepito'
+        linkedin_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://linkedin.com/in/pepito'
+        twitter_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://twitter.com/pepito'
+        facebook_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://facebook.com/pepito'
+        instagram_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://instagram.com/pepito'
+        website_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://pepito.dev'
+        created_at:
+          type: string
+          format: date-time
+          example: '2025-11-01T09:30:00Z'
+        updated_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: '2025-11-12T10:30:00Z'
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        nickname:
+          type: string
+          nullable: true
+          example: Pepe
+        personal_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://pepito.dev'
+        bio:
+          type: string
+          nullable: true
+          maxLength: 500
+          example: 'Desarrollador full-stack especializado en microservicios'
+        organization:
+          type: string
+          nullable: true
+          example: 'Tech Corp'
+        country:
+          type: string
+          nullable: true
+          example: España
+        mailing_address:
+          type: string
+          nullable: true
+          example: 'Calle Principal 123, Madrid'
+        contact_info_public:
+          type: boolean
+          nullable: true
+          description: Si la información de contacto debe ser pública
+        profile_visibility:
+          type: string
+          enum:
+            - public
+            - private
+          nullable: true
+        github_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://github.com/pepito'
+        linkedin_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://linkedin.com/in/pepito'
+        twitter_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://twitter.com/pepito'
+        facebook_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://facebook.com/pepito'
+        instagram_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://instagram.com/pepito'
+        website_url:
+          type: string
+          format: uri
+          nullable: true
+          example: 'https://pepito.dev'
+
+    SearchProfilesResponse:
+      type: object
+      required:
+        - results
+        - count
+        - limit
+        - offset
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              username:
+                type: string
+              nickname:
+                type: string
+                nullable: true
+              bio:
+                type: string
+                nullable: true
+              organization:
+                type: string
+                nullable: true
+              country:
+                type: string
+                nullable: true
+              first_name:
+                type: string
+                nullable: true
+              last_name:
+                type: string
+                nullable: true
+        count:
+          type: integer
+          description: Número de resultados en esta página
+          example: 2
+        limit:
+          type: integer
+          description: Límite de resultados solicitado
+          example: 20
+        offset:
+          type: integer
+          description: Offset aplicado
+          example: 0
+
+    ProfileStats:
+      type: object
+      required:
+        - total_views
+        - recent_activity
+      properties:
+        total_views:
+          type: integer
+          description: Número total de vistas del perfil
+          example: 42
+        recent_activity:
+          type: array
+          items:
+            type: object
+            properties:
+              action:
+                type: string
+                enum:
+                  - created
+                  - updated
+                example: updated
+              changes:
+                type: object
+                description: Campos modificados
+                example:
+                  bio: 'Nueva biografía'
+              performed_at:
+                type: string
+                format: date-time
+                example: '2025-11-12T10:30:00Z'
+
   securitySchemes:
     bearerAuth:
       type: http
@@ -781,7 +1336,9 @@ tags:
   - name: Autenticación
     description: Endpoints para autenticación y registro
   - name: Gestión de Usuarios
-    description: Endpoints para gestionar perfiles y datos de usuarios
+    description: Endpoints para gestionar perfiles y datos de usuarios (operaciones unificadas)
+  - name: Perfiles
+    description: Endpoints específicos del servicio de perfiles - gestión completa de información extendida del usuario
 
 x-logo:
   url: 'https://raw.githubusercontent.com/OAI/OpenAPI-Specification/master/examples/v3.0/petstore.png'

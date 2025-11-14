@@ -14,12 +14,12 @@ spring:
       port: ${CONSUL_PORT:8500}
       discovery:
         enabled: true
-        service-name: orchestrator-service
+        service-name: orchestrator
         instance-id: ${spring.application.name}:${random.value}
         health-check-path: /actuator/health
         health-check-interval: 10s
         prefer-ip-address: false
-        hostname: notiorchestrator
+        hostname: orchestrator
     
 server:
   port: 8080

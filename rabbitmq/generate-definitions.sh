@@ -21,10 +21,6 @@ if [ -f /etc/rabbitmq/.env ]; then
             export "$line"
         fi
     done < /etc/rabbitmq/.env
-    
-    # Mostrar variables cargadas para debug
-    log "Variables de RabbitMQ cargadas:"
-    env | grep -E "(RABBITMQ|AUTH|MESSAGING|ORCHESTRATOR|USER|PASSWORD|SEND)" | sort
 fi
 
 # Verificar que las variables críticas estén definidas

@@ -7,7 +7,7 @@ import (
 
 	"github.com/cucumber/godog"
 	"github.com/cucumber/godog/colors"
-	"github.com/microservicios/apigateway/tests/acceptance/steps"
+	"github.com/ProyectoFinal-Microservicios/architecture/apigateway/tests/acceptance/steps"
 )
 
 var opts = godog.Options{
