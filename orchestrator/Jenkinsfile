@@ -46,12 +46,12 @@ pipeline {
         // ============================================
         stage('🔨 Build') {
             steps {
-                sh 'pwd'
-                sh 'ls -la'
-                echo "🔨 Compilando proyecto con Gradle..."
-                sh 'java -version'
-                sh './gradlew --version'
                 dir('orchestrator') {
+                    sh 'pwd'
+                    sh 'ls -la'
+                    echo "🔨 Compilando proyecto con Gradle..."
+                    sh 'java -version'
+                    sh './gradlew --version'
                     sh './gradlew clean build --no-daemon'
                 }
                 
