@@ -56,11 +56,6 @@ func queElGatewayEstDisponibleEn(baseURL string) error {
 	return nil
 }
 
-func queElServicioDeAutenticacinEstDisponible() error {
-	// En una implementación real, podrías verificar el health del servicio de autenticación
-	// Por ahora asumimos que está disponible si el gateway responde
-	return nil
-}
 
 func queElServicioDeProfilesEstDisponible() error {
 	// Similar al anterior, asumimos disponibilidad
@@ -425,8 +420,7 @@ func convertTableToJSON(table *godog.Table) []byte {
 
 // ============ INICIALIZACIÓN DE SCENARIO ============
 
-func InitializeScenario(ctx *godog.ScenarioContext, apiCtx *APIGatewayContext) {
-	apiContext = apiCtx
+func InitializeScenario(ctx *godog.ScenarioContext) {
 	// Configurar todos los steps
 	ctx.Step(`^que el gateway está disponible en "([^"]*)"$`, queElGatewayEstDisponibleEn)
 	ctx.Step(`^que el servicio de autenticación está disponible$`, queElServicioDeAutenticacinEstDisponible)
