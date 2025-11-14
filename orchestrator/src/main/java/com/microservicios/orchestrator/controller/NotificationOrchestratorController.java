@@ -1,5 +1,6 @@
 package com.microservicios.orchestrator.controller;
 
+import com.microservicios.orchestrator.model.AlertEvent;
 import com.microservicios.orchestrator.model.AuthEvent;
 import com.microservicios.orchestrator.service.NotificationOrchestratorService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,5 +31,10 @@ public class NotificationOrchestratorController {
     @PostMapping("/password-updated")
     public void simulatePasswordUpdated(@RequestBody AuthEvent event) {
         orchestratorService.handlePasswordUpdated(event);
+    }
+
+    @PostMapping("/alerts")
+    public void receiveAlert(@RequestBody AlertEvent alertEvent) {
+        orchestratorService.handleAlert(alertEvent);
     }
 }

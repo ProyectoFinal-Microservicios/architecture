@@ -1,0 +1,73 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+rule_files:
+  - "blackbox-rules.yml"
+  - "services-rules.yml"
+
+scrape_configs:
+
+  # ================================================
+  # AUTO DISCOVERY con CONSUL
+  # ================================================
+  - job_name: "consul-autodiscovery"
+    consul_sd_configs:
+      - server: "http://consul:8500"
+    relabel_configs:
+      - source_labels: ["__meta_consul_tags"]
+        regex: ".*,prometheus,.*"
+        action: keep
+      - source_labels: ["__meta_consul_service_metadata_metrics_path"]
+        target_label: "__metrics_path__"
+        replacement: "$1"
+      - source_labels: ["__meta_consul_service"]
+        target_label: instance
+
+  # ================================================
+  # BLACKBOX EXPORTER
+  # ================================================
+  - job_name: "blackbox"
+    metrics_path: /probe
+    honor_labels: true
+    params:
+      module: [http_2xx]
+
+    static_configs:
+      - targets:
+          - http://auth:3500/health
+        labels:
+          service: auth
+          category: health
+
+      - targets:
+          - http://sms:6379/health
+        labels:
+          service: sms
+          category: health
+
+      - targets:
+          - http://orchestrator:8080/actuator/health
+        labels:
+          service: orchestrator
+          category: health
+
+      - targets:
+          - http://api-gateway:8888/health
+        labels:
+          service: api-gateway
+          category: health
+
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - target_label: __address__
+        replacement: blackbox:9115
+      - source_labels: [__param_target]
+        target_label: instance

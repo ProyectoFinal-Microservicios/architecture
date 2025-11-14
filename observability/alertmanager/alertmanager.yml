@@ -1,0 +1,8 @@
+route:
+  receiver: default
+
+receivers:
+  - name: default
+    webhook_configs:
+      - url: 'http://orchestrator:8080/orchestrator/alerts'
+        send_resolved: true

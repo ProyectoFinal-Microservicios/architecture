@@ -67,7 +67,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "sum by (container_name) (count_over_time({job=\"docker\"} | json [24h]))",
+          "expr": "sum by (container) (count_over_time({container=~\".+\"} | json [24h]))",
           "refId": "A"
         }
       ],
@@ -111,7 +111,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "sum by (level) (count_over_time({job=\"docker\"} | json | __error__=\"\" [1h]))",
+          "expr": "sum by (level) (count_over_time({container=~\".+\"} | json | __error__=\"\" [1h]))",
           "refId": "A"
         }
       ],
@@ -141,7 +141,7 @@
             "type": "loki",
             "uid": "loki"
           },
-          "expr": "{job=\"docker\"} | json",
+          "expr": "{container=~\".+\"} | json",
           "refId": "A"
         }
       ],
