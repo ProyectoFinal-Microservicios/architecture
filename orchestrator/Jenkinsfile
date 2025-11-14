@@ -43,11 +43,12 @@ pipeline {
         // ============================================
         stage('🔨 Build') {
             steps {
+                sh 'pwd'
+                sh 'ls -la'
                 echo "🔨 Compilando proyecto con Gradle..."
                 sh 'java -version'
                 sh 'gradle --version'
                 sh 'gradle clean build --no-daemon'
-                sh 'pwd'
             }
         }
 
