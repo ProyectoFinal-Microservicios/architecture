@@ -13,7 +13,6 @@ pipeline {
     agent any
     
     tools {
-        gradle 'Gradle8'
         jdk 'jdk-17'
     }
 
@@ -47,6 +46,7 @@ pipeline {
         stage('🔨 Build') {
             steps {
                 dir('orchestrator') {
+                    sh 'echo ${JAVA_HOME}'
                     sh 'pwd'
                     sh 'ls -la'
                     echo "🔨 Compilando proyecto con Gradle..."
