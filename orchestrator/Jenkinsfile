@@ -19,6 +19,8 @@ pipeline {
 
     environment {
         SONARQUBE_ENV = 'sonarqube'
+        JAVA_HOME = tool('jdk-17')
+        PATH = "${JAVA_HOME}/bin:${PATH}"
     }
 
     options {
@@ -48,9 +50,9 @@ pipeline {
                 sh 'ls -la'
                 echo "🔨 Compilando proyecto con Gradle..."
                 sh 'java -version'
-                sh 'gradle --version'
+                sh './gradlew --version'
                 dir('orchestrator') {
-                    sh 'gradle clean build --no-daemon'
+                    sh './gradlew clean build --no-daemon'
                 }
                 
             }
