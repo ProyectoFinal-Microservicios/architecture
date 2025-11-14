@@ -45,8 +45,8 @@ pipeline {
             steps {
                 echo "🔨 Compilando proyecto con Gradle..."
                 sh 'java -version'
-                sh './gradlew --version'
-                sh './gradlew clean build -x test --no-daemon'
+                sh 'gradle --version'
+                sh 'gradle clean build -x test --no-daemon'
             }
         }
 
