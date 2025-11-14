@@ -10,10 +10,12 @@ RUN apk add --no-cache git
 COPY go.mod go.sum ./
 RUN go mod download
 
+
 # Copiar código fuente
 COPY . .
 
 # Compilar
+RUN go get github.com/gorilla/mux
 RUN CGO_ENABLED=0 GOOS=linux go build -o gateway ./app/main.go
 
 # Stage final
