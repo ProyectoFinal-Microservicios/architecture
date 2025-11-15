@@ -929,8 +929,22 @@ func (g *Gateway) handleDocsRoot(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) handleOpenAPIYAML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Header().Set("Content-Disposition", "inline; filename=openapi.yaml")
-	// Sirve el archivo YAML desde ../docs/openapi.yaml
-	http.ServeFile(w, r, "../docs/openapi.yaml")
+	// Intentar servir desde múltiples rutas posibles
+	possiblePaths := []string{
+		"docs/openapi.yaml",
+		"./docs/openapi.yaml",
+		"../docs/openapi.yaml",
+	}
+	
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			http.ServeFile(w, r, path)
+			return
+		}
+	}
+	
+	// Si no encuentra el archivo, retorna error
+	http.Error(w, "openapi.yaml not found", http.StatusNotFound)
 }
 
 func (g *Gateway) handleOpenAPIJSON(w http.ResponseWriter, r *http.Request) {
