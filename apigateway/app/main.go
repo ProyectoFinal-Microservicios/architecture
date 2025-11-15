@@ -20,11 +20,11 @@ import (
 // ============================================
 
 type Config struct {
-	Port               string
-	AuthServiceURL     string
-	ProfileServiceURL  string // Futuro servicio de perfiles
-	OrchestratorURL    string
-	JWTSecret          string
+	Port              string
+	AuthServiceURL    string
+	ProfileServiceURL string // Futuro servicio de perfiles
+	OrchestratorURL   string
+	JWTSecret         string
 }
 
 type ServiceResponse struct {
@@ -36,21 +36,21 @@ type ServiceResponse struct {
 
 type UnifiedUserResponse struct {
 	User struct {
-		ID           string  `json:"id"`
-		Username     string  `json:"username"`
-		Email        string  `json:"email"`
-		FirstName    *string `json:"firstName"`
-		LastName     *string `json:"lastName"`
-		Phone        *string `json:"phone"`
-		Role         string  `json:"role"`
-		Status       string  `json:"status"`
-		CreatedAt    string  `json:"createdAt"`
-		UpdatedAt    *string `json:"updatedAt"`
-		LastLoginAt  *string `json:"lastLoginAt"`
+		ID          string  `json:"id"`
+		Username    string  `json:"username"`
+		Email       string  `json:"email"`
+		FirstName   *string `json:"firstName"`
+		LastName    *string `json:"lastName"`
+		Phone       *string `json:"phone"`
+		Role        string  `json:"role"`
+		Status      string  `json:"status"`
+		CreatedAt   string  `json:"createdAt"`
+		UpdatedAt   *string `json:"updatedAt"`
+		LastLoginAt *string `json:"lastLoginAt"`
 		//futuros campos del servicio de perfiles
-		Bio          *string `json:"bio,omitempty"`
-		Avatar       *string `json:"avatar,omitempty"`
-		Preferences  *string `json:"preferences,omitempty"`
+		Bio         *string `json:"bio,omitempty"`
+		Avatar      *string `json:"avatar,omitempty"`
+		Preferences *string `json:"preferences,omitempty"`
 	} `json:"user"`
 }
 
@@ -80,12 +80,12 @@ func (g *Gateway) loggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		start := time.Now()
 		log.Printf("[%s] %s %s - Started", r.Method, r.URL.Path, r.RemoteAddr)
-		
+
 		// Crear un ResponseWriter personalizado para capturar el status code
 		rw := &responseWriter{ResponseWriter: w, statusCode: http.StatusOK}
-		
+
 		next.ServeHTTP(rw, r)
-		
+
 		duration := time.Since(start)
 		log.Printf("[%s] %s - Status: %d - Duration: %v", r.Method, r.URL.Path, rw.statusCode, duration)
 	})
@@ -110,12 +110,12 @@ func (g *Gateway) corsMiddleware(next http.Handler) http.Handler {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-		
+
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -241,7 +241,7 @@ func (g *Gateway) handleRegister(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) handleDeleteUser(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	username := vars["username"]
-	
+
 	log.Printf("[Gateway] Processing delete user request for: %s", username)
 
 	// Extraer token de autorización
@@ -325,7 +325,7 @@ func (g *Gateway) publishUserDeletedEvent(username string, authHeader string) {
 func (g *Gateway) handleGetUserUnified(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	username := vars["username"]
-	
+
 	log.Printf("[Gateway] Processing unified GET user request for: %s", username)
 
 	// Extraer token de autorización
@@ -397,12 +397,12 @@ func (g *Gateway) handleGetUserUnified(w http.ResponseWriter, r *http.Request) {
 
 	// Combinar con datos de perfil si están disponibles
 	unifiedResponse := authData
-	
+
 	if profileResp := results["profile"]; profileResp != nil && profileResp.StatusCode == 200 {
 		var profileData map[string]interface{}
 		if err := json.Unmarshal(profileResp.Body, &profileData); err == nil {
 			log.Printf("[Gateway] Successfully retrieved profile data for %s", username)
-			
+
 			// Obtener el objeto user de auth
 			if userObj, ok := unifiedResponse["user"].(map[string]interface{}); ok {
 				// Agregar campos adicionales del perfil
@@ -455,7 +455,7 @@ func (g *Gateway) handleGetUserUnified(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	username := vars["username"]
-	
+
 	log.Printf("[Gateway] Processing unified UPDATE user request for: %s", username)
 
 	// Extraer token de autorización
@@ -495,7 +495,7 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 	profileFieldNames := []string{
 		"bio", "nickname", "personalUrl", "organization", "country",
 		"mailingAddress", "contactInfoPublic", "profileVisibility",
-		"githubUrl", "linkedinUrl", "twitterUrl", "facebookUrl", 
+		"githubUrl", "linkedinUrl", "twitterUrl", "facebookUrl",
 		"instagramUrl", "websiteUrl",
 	}
 	for _, field := range profileFieldNames {
@@ -520,17 +520,17 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 			defer wg.Done()
 			authBody, _ := json.Marshal(authFields)
 			targetURL := g.config.AuthServiceURL + "/accounts/" + username
-			
+
 			// Crear request PATCH
 			req, err := http.NewRequest("PATCH", targetURL, bytes.NewReader(authBody))
 			if err != nil {
 				resultChan <- ServiceResult{Name: "auth", Error: err}
 				return
 			}
-			
+
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", authHeader)
-			
+
 			resp := g.proxyRequest(targetURL, req, authBody)
 			resultChan <- ServiceResult{Name: "auth", Response: resp}
 		}()
@@ -541,7 +541,7 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			
+
 			// Convertir campos al formato snake_case que espera el servicio de profiles
 			profileFieldsSnake := make(map[string]interface{})
 			fieldMapping := map[string]string{
@@ -556,7 +556,7 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 				"instagramUrl":      "instagram_url",
 				"websiteUrl":        "website_url",
 			}
-			
+
 			for key, val := range profileFields {
 				if snakeKey, exists := fieldMapping[key]; exists {
 					profileFieldsSnake[snakeKey] = val
@@ -564,20 +564,20 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 					profileFieldsSnake[key] = val
 				}
 			}
-			
+
 			profileBody, _ := json.Marshal(profileFieldsSnake)
 			targetURL := g.config.ProfileServiceURL + "/profiles/me"
-			
+
 			// Crear request PUT para el servicio de profiles
 			req, err := http.NewRequest("PUT", targetURL, bytes.NewReader(profileBody))
 			if err != nil {
 				resultChan <- ServiceResult{Name: "profile", Error: err}
 				return
 			}
-			
+
 			req.Header.Set("Content-Type", "application/json")
 			req.Header.Set("Authorization", authHeader)
-			
+
 			resp := g.proxyRequest(targetURL, req, profileBody)
 			resultChan <- ServiceResult{Name: "profile", Response: resp}
 		}()
@@ -592,14 +592,14 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 	// Recolectar respuestas
 	results := make(map[string]*ServiceResponse)
 	errors := []string{}
-	
+
 	for result := range resultChan {
 		if result.Error != nil {
 			errors = append(errors, fmt.Sprintf("%s: %v", result.Name, result.Error))
 			continue
 		}
 		results[result.Name] = result.Response
-		
+
 		if result.Response.StatusCode != 200 {
 			errors = append(errors, fmt.Sprintf("%s returned status %d", result.Name, result.Response.StatusCode))
 		}
@@ -615,7 +615,7 @@ func (g *Gateway) handleUpdateUserUnified(w http.ResponseWriter, r *http.Request
 
 	// Obtener datos actualizados
 	g.handleGetUserUnified(w, r)
-	
+
 	log.Printf("[Gateway] Unified UPDATE user request completed successfully")
 }
 
@@ -744,7 +744,7 @@ func (g *Gateway) handleSearchProfiles(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) handleGetPublicProfile(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	username := vars["username"]
-	
+
 	log.Printf("[Gateway] Processing GET public profile request for: %s", username)
 
 	// Proxy al servicio de perfiles
@@ -815,12 +815,12 @@ func (g *Gateway) handleGetProfileStats(w http.ResponseWriter, r *http.Request) 
 
 func (g *Gateway) handleHealth(w http.ResponseWriter, r *http.Request) {
 	health := map[string]interface{}{
-		"status": "UP",
-		"service": "api-gateway",
+		"status":    "UP",
+		"service":   "api-gateway",
 		"timestamp": time.Now().Format(time.RFC3339),
 		"upstreams": map[string]string{
-			"auth": g.config.AuthServiceURL,
-			"profiles": g.config.ProfileServiceURL,
+			"auth":         g.config.AuthServiceURL,
+			"profiles":     g.config.ProfileServiceURL,
 			"orchestrator": g.config.OrchestratorURL,
 		},
 	}
@@ -929,22 +929,18 @@ func (g *Gateway) handleDocsRoot(w http.ResponseWriter, r *http.Request) {
 func (g *Gateway) handleOpenAPIYAML(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/yaml")
 	w.Header().Set("Content-Disposition", "inline; filename=openapi.yaml")
-	// Intentar servir desde múltiples rutas posibles
-	possiblePaths := []string{
-		"docs/openapi.yaml",
-		"./docs/openapi.yaml",
-		"../docs/openapi.yaml",
+
+	// Ruta del archivo en el contenedor
+	yamlPath := "docs/openapi.yaml"
+
+	// Verificar si existe
+	if _, err := os.Stat(yamlPath); err != nil {
+		log.Printf("[Gateway] openapi.yaml not found at: %s", yamlPath)
+		http.Error(w, "openapi.yaml not found", http.StatusNotFound)
+		return
 	}
-	
-	for _, path := range possiblePaths {
-		if _, err := os.Stat(path); err == nil {
-			http.ServeFile(w, r, path)
-			return
-		}
-	}
-	
-	// Si no encuentra el archivo, retorna error
-	http.Error(w, "openapi.yaml not found", http.StatusNotFound)
+
+	http.ServeFile(w, r, yamlPath)
 }
 
 func (g *Gateway) handleOpenAPIJSON(w http.ResponseWriter, r *http.Request) {
@@ -952,7 +948,7 @@ func (g *Gateway) handleOpenAPIJSON(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", "inline; filename=openapi.json")
 	// Genera JSON a partir del YAML (en una aplicación real, usa un conversor)
 	json.NewEncoder(w).Encode(map[string]string{
-		"message": "Use /docs/openapi.yaml para ver la especificación completa",
+		"message":    "Use /docs/openapi.yaml para ver la especificación completa",
 		"swagger_ui": "http://localhost:8000/docs/swagger",
 	})
 }
@@ -1120,7 +1116,6 @@ func main() {
 	log.Println("🔗 Abre en tu navegador:")
 	log.Printf("   http://localhost:%s/docs/swagger", config.Port)
 	log.Println("===========================================")
-
 
 	// Iniciar servidor
 	addr := ":" + config.Port

@@ -28,6 +28,9 @@ WORKDIR /root/
 # Copiar binario
 COPY --from=builder /app/gateway .
 
+# Copiar documentación
+COPY --from=builder /app/docs ./docs
+
 EXPOSE 8000
 
 CMD ["./gateway"]
